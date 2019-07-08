@@ -1,0 +1,209 @@
+<title>K-means demo</title>
+
+<style>
+    body, html {
+        margin: 0;
+    }
+    .settings {
+        position: absolute;
+        text-align: center;
+        padding: auto;
+        background-color: #222;
+        color: white;
+        width: 100%;
+    }
+    .settings div {
+        display: inline-block;
+        margin: 20px;
+    }
+    
+    #canvas_containter {
+        width: 100%;
+        height: 100%;
+        background-color: #e6e6e6;
+    }
+    canvas {
+        margin-top: 200px;
+        background-color: white;
+        box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.75);
+    }
+    
+    a {
+        color: white;
+    }
+</style>
+
+<header class="settings">
+    <a href="https://github.com/PureGero/" target="_blank">
+        <div style="float: left; font-size: 42px; cursor: pointer;">
+            <img src="https://www.waseda.jp/top/assets/themes/waseda-template-engine-main/img/logo-header-off.png" height=50/>
+            K-means
+        </div>
+    </a>
+    <div>
+        Centroids (<span id="centroids_text">3</span>)<br/>
+        1<input type="range" min="1" max="10" value="3" id="centroids">10<br/>
+    </div>
+    <div>
+        Data points (<span id="points_text">100</span>)<br/>
+        1<input type="range" min="1" max="1000" value="100" id="points">1000<br/>
+    </div>
+    <div>
+        Noise (<span id="noise_text">50</span>%)<br/>
+        0%<input type="range" min="0" max="100" value="50" id="noise">100%<br/>
+    </div>
+</header>
+
+<section id="canvas_containter">
+    <canvas id="canvas">
+        <h1>Your browser is not supported</h1>
+    </canvas>
+</section>
+
+<script>
+    var fills = [
+        '#9b042c', '#05b34f', '#346499', '#e6a62e', '#9b042c',
+        '#f5e6ea', '#fdf6eb', '#a5b300', '#222', '#666'
+    ];
+
+    var centroids = document.getElementById('centroids');
+    var points = document.getElementById('points');
+    var noise = document.getElementById('noise');
+    var seed = Math.random();
+    
+    centroids.oninput = function() {
+        document.getElementById('centroids_text').innerHTML = this.value;
+        reset();
+    }
+    
+    points.oninput = function() {
+        document.getElementById('points_text').innerHTML = this.value;
+        reset();
+    }
+    
+    noise.oninput = function() {
+        document.getElementById('noise_text').innerHTML = this.value;
+        reset();
+    }
+    
+    var pointList = [];
+    var centroidList = [];
+    
+    function Random(seed) {
+        this.seed = seed;
+        this.random = function() {
+            var x = Math.sin(this.seed++) * 10000;
+            return x - Math.floor(x);
+        }
+        return this;
+    }
+    
+    function reset() {
+        var cs = parseInt(centroids.value);
+        var ps = parseInt(points.value);
+        var n = parseInt(noise.value)/100;
+        var random;
+        
+        centroidList = [];
+        random = new Random(seed); 
+        for (var i = 0; i < cs; i ++) {
+            var x = random.random();
+            var y = random.random();
+            centroidList.push({x: x, y: y});
+        }
+        
+        pointList = [];
+        random = new Random(seed*2); 
+        for (var j = 0; j < ps; j ++) {
+            var i = Math.floor(random.random()*cs);
+            var c = centroidList[i];
+            var d = random.random()*n;
+            d *= (random.random()*0.5 + 0.5)*n;
+            var a = random.random()*2*Math.PI;
+            var x = c.x + d*Math.cos(a);
+            var y = c.y + d*Math.sin(a);
+            if (x < 0 || y < 0 || x > 1 || y > 1) {
+                j--; // Try again, this one's out of bounds
+                continue;
+            }
+            pointList.push({x: x, y: y});
+        }
+        
+        centroidList = [];
+        random = new Random(seed*3); 
+        for (var i = 0; i < cs; i ++) {
+            var x = random.random();
+            var y = random.random();
+            centroidList.push({x: x, y: y});
+        }
+        
+        onresize();
+    }
+    
+    function render() {
+        var canvas = document.getElementById('canvas');
+        var c = canvas.getContext('2d');
+        
+        var w = canvas.width/2;
+        var h = canvas.height/2;
+        
+        c.scale(2, 2);
+        
+        c.strokeStyle = 'black';
+        
+        c.moveTo(50, 50);
+        c.lineTo(50, h - 50);
+        c.moveTo(50, h - 50);
+        c.lineTo(w - 50, h - 50);
+        c.stroke();
+        
+        c.font = '15px Arial';
+        
+        c.fillText('X-axis', w/2 - 15, h - 21);
+        c.fillText('Y-axis', 5, h/2);
+        
+        w = w - 100;
+        h = h - 100;
+        c.translate(50, 50);
+        
+        for (var i = 0; i < centroidList.length; i++) {
+            var p = centroidList[i];
+            c.fillStyle = fills[i];
+            c.beginPath();
+            c.moveTo(p.x * w, p.y * h);
+            c.arc(p.x * w, p.y * h, 10, 0, Math.PI*2);
+            c.fill();
+        }
+        
+        c.beginPath();
+        for (var i = 0; i < pointList.length; i++) {
+            var p = pointList[i];
+            c.moveTo(p.x * w - 5, p.y * h - 5);
+            c.lineTo(p.x * w + 5, p.y * h + 5);
+            c.moveTo(p.x * w - 5, p.y * h + 5);
+            c.lineTo(p.x * w + 5, p.y * h - 5);
+        }
+        c.stroke();
+    }
+    
+    window.onresize = function() {
+        var container = document.getElementById('canvas_containter');
+        var canvas = document.getElementById('canvas');
+        var width = container.offsetWidth - 200;
+        var height = container.offsetHeight - 300;
+        if (width > 2*height) width = 2*height;
+        
+        canvas.width = width*2;
+        canvas.height = height*2;
+        
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        
+        canvas.style.marginLeft = (container.offsetWidth - width)/2;
+        
+        render();
+    };
+    
+    reset();
+    onresize();
+</script>
