@@ -1,4 +1,5 @@
 <title>K-means demo</title>
+<meta charset="UTF-8">
 
 <style>
     body, html {
@@ -22,6 +23,7 @@
         height: 100%;
         background-color: #e6e6e6;
     }
+    
     canvas {
         margin-top: 200px;
         background-color: white;
@@ -34,7 +36,7 @@
 </style>
 
 <header class="settings">
-    <a href="https://github.com/PureGero/" target="_blank">
+    <a href="https://github.com/PureGero/Kmeans" target="_blank">
         <div style="float: left; font-size: 42px; cursor: pointer;">
             <img src="https://www.waseda.jp/top/assets/themes/waseda-template-engine-main/img/logo-header-off.png" height=50/>
             K-means
@@ -43,18 +45,22 @@
     <div>
         Centroids (<span id="centroids_text">3</span>)<br/>
         1<input type="range" min="1" max="10" value="3" id="centroids">10<br/>
+        重心
     </div>
     <div>
         Data points (<span id="points_text">100</span>)<br/>
         1<input type="range" min="1" max="1000" value="100" id="points">1000<br/>
+        点
     </div>
     <div>
         Noise (<span id="noise_text">50</span>%)<br/>
         0%<input type="range" min="0" max="100" value="50" id="noise">100%<br/>
+        ノイズ
     </div>
 </header>
 
 <section id="canvas_containter">
+    <div class="buttons">Next | New | Reset</div>
     <canvas id="canvas">
         <h1>Your browser is not supported</h1>
     </canvas>
@@ -69,7 +75,8 @@
     var centroids = document.getElementById('centroids');
     var points = document.getElementById('points');
     var noise = document.getElementById('noise');
-    var seed = Math.random();
+    var seed = Math.random(); // seed = 0.6675339138844891 is a pretty cool seed
+    var stage = 0;
     
     centroids.oninput = function() {
         document.getElementById('centroids_text').innerHTML = this.value;
@@ -103,6 +110,7 @@
         var ps = parseInt(points.value);
         var n = parseInt(noise.value)/100;
         var random;
+        stage = 0;
         
         centroidList = [];
         random = new Random(seed); 
@@ -140,9 +148,64 @@
         onresize();
     }
     
+    function next() {
+        stage = (stage + 1) % 3;
+        console.log(stage);
+        
+        if (stage == 0) {
+            // Reset colours
+            for (var i = 0; i < pointList.length; i++) {
+                delete pointList[i].centroid;
+            }
+            for (var i = 0; i < centroidList.length; i++) {
+                var p = centroidList[i];
+                if ('dest' in p) {
+                    p.x = p.dest.x;
+                    p.y = p.dest.y;
+                    delete p.dest;
+                }
+            }
+        } else if (stage == 1) {
+            // Set the points' nearest centroid
+            for (var i = 0; i < pointList.length; i++) {
+                var p = pointList[i];
+                var distance = 100;
+                for (var j = 0; j < centroidList.length; j++) {
+                    var c = centroidList[j];
+                    var d = (p.x - c.x)*(p.x - c.x) + (p.y - c.y)*(p.y - c.y);
+                    if (d < distance) {
+                        distance = d;
+                        p.centroid = j;
+                    }
+                }
+            }
+        } else if (stage == 2) {
+            // Set the centroids destination
+            for (var i = 0; i < centroidList.length; i++) {
+                var total = 0;
+                var x = 0;
+                var y = 0;
+                for (var j = 0; j < pointList.length; j++) {
+                    var p = pointList[j];
+                    if (p.centroid == i) {
+                        total += 1;
+                        x += p.x;
+                        y += p.y;
+                    }
+                }
+                if (total > 0)
+                    centroidList[i].dest = {x: x/total, y: y/total};
+            }
+        }
+        
+        render();
+    }
+    
     function render() {
         var canvas = document.getElementById('canvas');
+        canvas.width = canvas.width;
         var c = canvas.getContext('2d');
+        c.save();
         
         var w = canvas.width/2;
         var h = canvas.height/2;
@@ -161,29 +224,57 @@
         
         c.fillText('X-axis', w/2 - 15, h - 21);
         c.fillText('Y-axis', 5, h/2);
+        c.fillText('Press space スペース押す', w/2 - 85, 25);
         
         w = w - 100;
         h = h - 100;
         c.translate(50, 50);
         
+        c.lineWidth = 3;
         for (var i = 0; i < centroidList.length; i++) {
             var p = centroidList[i];
             c.fillStyle = fills[i];
+            c.strokeStyle = fills[i];
             c.beginPath();
             c.moveTo(p.x * w, p.y * h);
             c.arc(p.x * w, p.y * h, 10, 0, Math.PI*2);
             c.fill();
+            
+            if ('dest' in p) {
+                c.beginPath();
+                canvas_arrow(c, p.x * w, p.y * h, p.dest.x * w, p.dest.y * h);
+                c.stroke();
+            }
         }
         
-        c.beginPath();
+        c.lineWidth = 1;
         for (var i = 0; i < pointList.length; i++) {
             var p = pointList[i];
+            c.strokeStyle = 'black';
+            if ('centroid' in p) {
+                c.strokeStyle = fills[p.centroid];
+            }
+            
+            c.beginPath();
             c.moveTo(p.x * w - 5, p.y * h - 5);
             c.lineTo(p.x * w + 5, p.y * h + 5);
             c.moveTo(p.x * w - 5, p.y * h + 5);
             c.lineTo(p.x * w + 5, p.y * h - 5);
+            c.stroke();
         }
-        c.stroke();
+        
+        c.restore();
+    }
+    
+    // From https://stackoverflow.com/questions/808826/draw-arrow-on-canvas-tag
+    function canvas_arrow(context, fromx, fromy, tox, toy){
+        var headlen = 10;   // length of head in pixels
+        var angle = Math.atan2(toy-fromy,tox-fromx);
+        context.moveTo(fromx, fromy);
+        context.lineTo(tox, toy);
+        context.lineTo(tox-headlen*Math.cos(angle-Math.PI/6),toy-headlen*Math.sin(angle-Math.PI/6));
+        context.moveTo(tox, toy);
+        context.lineTo(tox-headlen*Math.cos(angle+Math.PI/6),toy-headlen*Math.sin(angle+Math.PI/6));
     }
     
     window.onresize = function() {
@@ -202,6 +293,12 @@
         canvas.style.marginLeft = (container.offsetWidth - width)/2;
         
         render();
+    };
+    
+    window.onkeydown = function(e) {
+        if (e.keyCode == 32 || e.keyCode == 39) {
+            next();
+        }
     };
     
     reset();
