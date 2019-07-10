@@ -32,16 +32,19 @@
     
     a {
         color: white;
+        text-decoration: none;
     }
 </style>
 
 <header class="settings">
-    <a href="https://github.com/PureGero/Kmeans" target="_blank">
-        <div style="float: left; font-size: 42px; cursor: pointer;">
+    <div style="float: left; font-size: 42px; cursor: pointer;">
+        <a href="http://www.waseda.jp/" target="_blank">
             <img src="https://www.waseda.jp/top/assets/themes/waseda-template-engine-main/img/logo-header-off.png" height=50/>
+        </a>
+        <a href="https://github.com/PureGero/Kmeans" target="_blank">
             K-means
-        </div>
-    </a>
+        </a>
+    </div>
     <div>
         Centroids (<span id="centroids_text">3</span>)<br/>
         1<input type="range" min="1" max="10" value="3" id="centroids">10<br/>
@@ -140,8 +143,10 @@
         centroidList = [];
         random = new Random(seed*3); 
         for (var i = 0; i < cs; i ++) {
-            var x = random.random();
-            var y = random.random();
+            var j = Math.floor(random.random()*pointList.length);
+            var p = pointList[j];
+            var x = p.x;
+            var y = p.y;
             centroidList.push({x: x, y: y});
         }
         
